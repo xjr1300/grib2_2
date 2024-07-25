@@ -8,9 +8,9 @@ use grib2_2::readers::prr::PrrReader;
 /// 実況のみを記録した土砂災害警戒判定メッシュファイル
 /// cspell: disable
 #[rustfmt::skip]
-const SRC_PATH: &str = "resources/Z__C_RJTD_20161121000000_SRF_GPV_Ggis1km_Prr60lv_Aper10min_ANAL_grib2.bin";
+const SRC_PATH: &str = "resources/Z__C_RJTD_20161121010000_SRF_GPV_Ggis1km_Prr60lv_Aper10min_ANAL_grib2.bin";
 #[rustfmt::skip]
-const DST_PATH: &str = "resources/dst/Z__C_RJTD_20161121000000_SRF_GPV_Ggis1km_Prr60lv_Aper10min_ANAL_grib2.csv";
+const DST_PATH: &str = "resources/dst/Z__C_RJTD_20161121010000_SRF_GPV_Ggis1km_Prr60lv_Aper10min_ANAL_grib2.csv";
 /// cspell: enable
 
 fn main() -> anyhow::Result<()> {

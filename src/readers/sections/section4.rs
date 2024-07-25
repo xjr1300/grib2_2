@@ -74,6 +74,163 @@ where
     }
 }
 
+/// テンプレート4.0
+#[derive(Debug, Clone, Copy)]
+pub struct Template4_0 {
+    /// パラメータカテゴリー
+    parameter_category: u8,
+    /// パラメータ番号
+    parameter_number: u8,
+    /// 作成処理の種類
+    type_of_generating_process: u8,
+    /// 背景作成処理識別符
+    background_process: u8,
+    /// 予報の作成処理識別符
+    generating_process_identifier: u8,
+    /// 観測資料の参照時刻からの締切時間（時）
+    hours_after_data_cutoff: u16,
+    /// 観測資料の参照時刻からの締切時間（分）
+    minutes_after_data_cutoff: u8,
+    /// 期間の単位の指示符
+    indicator_of_unit_of_time_range: u8,
+    /// 予報時間
+    forecast_time: i32,
+    /// 第一固定面の種類
+    type_of_first_fixed_surface: u8,
+    /// 第一固定面の尺度因子
+    scale_factor_of_first_fixed_surface: u8,
+    /// 第一固定面の尺度付きの値
+    scaled_value_of_first_fixed_surface: u32,
+    /// 第二固定面の種類
+    type_of_second_fixed_surface: u8,
+    /// 第二固定面の尺度因子
+    scale_factor_of_second_fixed_surface: u8,
+    /// 第二固定面の尺度付きの値
+    scaled_value_of_second_fixed_surface: u32,
+}
+
+impl TemplateReader for Template4_0 {
+    fn from_reader<R: Read>(reader: &mut BufReader<R>) -> Grib2Result<Self> {
+        // パラメータカテゴリー: 1バイト
+        let parameter_category = read_u8(reader, "第4節:パラメータカテゴリー")?;
+        // パラメータ番号: 1バイト
+        let parameter_number = read_u8(reader, "第4節:パラメータ番号")?;
+        // 作成処理の種類: 1バイト
+        let type_of_generating_process = read_u8(reader, "第4節:作成処理の種類")?;
+        // 背景作成処理識別符: 1バイト
+        let background_process = read_u8(reader, "第4節:背景作成処理識別符")?;
+        // 予報の作成処理識別符: 1バイト
+        let generating_process_identifier = read_u8(reader, "第4節:予報の作成処理識別符")?;
+        // 観測資料の参照時刻からの締切時間（時）: 2バイト
+        let hours_after_data_cutoff =
+            read_u16(reader, "第4節:観測資料の参照時刻からの締切時間（時）")?;
+        // 観測資料の参照時刻からの締切時間（分）: 1バイト
+        let minutes_after_data_cutoff =
+            read_u8(reader, "第4節:観測資料の参照時刻からの締切時間（分）")?;
+        // 期間の単位の指示符: 1バイト
+        let indicator_of_unit_of_time_range = read_u8(reader, "第4節:期間の単位の指示符")?;
+        // 予報時間: 4バイト
+        let forecast_time = read_i32(reader, "第4節:予報時間")?;
+        // 第一固定面の種類: 1バイト
+        let type_of_first_fixed_surface = read_u8(reader, "第4節:第一固定面の種類")?;
+        // 第一固定面の尺度因子: 1バイト
+        let scale_factor_of_first_fixed_surface = read_u8(reader, "第4節:第一固定面の尺度因子")?;
+        // 第一固定面の尺度付きの値: 4バイト
+        let scaled_value_of_first_fixed_surface =
+            read_u32(reader, "第4節:第一固定面の尺度付きの値")?;
+        // 第二固定面の種類: 1バイト
+        let type_of_second_fixed_surface = read_u8(reader, "第4節:第二固定面の種類")?;
+        // 第二固定面の尺度因子: 1バイト
+        let scale_factor_of_second_fixed_surface = read_u8(reader, "第4節:第二固定面の尺度因子")?;
+        // 第二固定面の尺度付きの値: 4バイト
+        let scaled_value_of_second_fixed_surface =
+            read_u32(reader, "第4節:第二固定面の尺度付きの値")?;
+
+        Ok(Self {
+            parameter_category,
+            parameter_number,
+            type_of_generating_process,
+            background_process,
+            generating_process_identifier,
+            hours_after_data_cutoff,
+            minutes_after_data_cutoff,
+            indicator_of_unit_of_time_range,
+            forecast_time,
+            type_of_first_fixed_surface,
+            scale_factor_of_first_fixed_surface,
+            scaled_value_of_first_fixed_surface,
+            type_of_second_fixed_surface,
+            scale_factor_of_second_fixed_surface,
+            scaled_value_of_second_fixed_surface,
+        })
+    }
+}
+
+pub type Section4_0 = Section4<Template4_0>;
+
+impl Section4_0 {
+    /// パラメータカテゴリーを返す。
+    pub fn parameter_category(&self) -> u8 {
+        self.template4.parameter_category
+    }
+    /// パラメータ番号を返す。
+    pub fn parameter_number(&self) -> u8 {
+        self.template4.parameter_number
+    }
+    /// 作成処理の種類を返す。
+    pub fn type_of_generating_process(&self) -> u8 {
+        self.template4.type_of_generating_process
+    }
+    /// 背景作成処理識別符を返す。
+    pub fn background_process(&self) -> u8 {
+        self.template4.background_process
+    }
+    /// 予報の作成処理識別符を返す。
+    pub fn generating_process_identifier(&self) -> u8 {
+        self.template4.generating_process_identifier
+    }
+    /// 観測資料の参照時刻からの締切時間（時）を返す。
+    pub fn hours_after_data_cutoff(&self) -> u16 {
+        self.template4.hours_after_data_cutoff
+    }
+    /// 観測資料の参照時刻からの締切時間（分）を返す。
+    pub fn minutes_after_data_cutoff(&self) -> u8 {
+        self.template4.minutes_after_data_cutoff
+    }
+    /// 期間の単位の指示符を返す。
+    pub fn indicator_of_unit_of_time_range(&self) -> u8 {
+        self.template4.indicator_of_unit_of_time_range
+    }
+    /// 予報時間を返す。
+    pub fn forecast_time(&self) -> i32 {
+        self.template4.forecast_time
+    }
+    /// 第一固定面の種類を返す。
+    pub fn type_of_first_fixed_surface(&self) -> u8 {
+        self.template4.type_of_first_fixed_surface
+    }
+    /// 第一固定面の尺度因子を返す。
+    pub fn scale_factor_of_first_fixed_surface(&self) -> u8 {
+        self.template4.scale_factor_of_first_fixed_surface
+    }
+    /// 第一固定面の尺度付きの値を返す。
+    pub fn scaled_value_of_first_fixed_surface(&self) -> u32 {
+        self.template4.scaled_value_of_first_fixed_surface
+    }
+    /// 第二固定面の種類を返す。
+    pub fn type_of_second_fixed_surface(&self) -> u8 {
+        self.template4.type_of_second_fixed_surface
+    }
+    /// 第二固定面の尺度因子を返す。
+    pub fn scale_factor_of_second_fixed_surface(&self) -> u8 {
+        self.template4.scale_factor_of_second_fixed_surface
+    }
+    /// 第二固定面の尺度付きの値を返す。
+    pub fn scaled_value_of_second_fixed_surface(&self) -> u32 {
+        self.template4.scaled_value_of_second_fixed_surface
+    }
+}
+
 /// テンプレート4.50000
 #[derive(Debug, Clone, Copy)]
 pub struct Template4_50000 {
