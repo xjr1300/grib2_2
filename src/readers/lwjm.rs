@@ -3,15 +3,10 @@ use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
 use crate::readers::records::Grib2RecordIter;
-use crate::readers::sections::section0::Section0;
-use crate::readers::sections::section1::Section1;
-use crate::readers::sections::section2::Section2;
-use crate::readers::sections::section3::Section3_0;
-use crate::readers::sections::section4::Section4_50000;
-use crate::readers::sections::section5::Section5_200i16;
-use crate::readers::sections::section6::Section6;
-use crate::readers::sections::section7::Section7_200;
-use crate::readers::sections::section8::Section8;
+use crate::readers::sections::{
+    Section0, Section1, Section2, Section3_0, Section4_50000, Section5_200i16, Section6,
+    Section7_200, Section8,
+};
 use crate::{Grib2Error, Grib2Result};
 
 use super::records::Grib2RecordIterBuilder;
