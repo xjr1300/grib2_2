@@ -1,16 +1,25 @@
 use std::io::{BufReader, Read, Seek};
 
-use crate::Grib2Result;
+mod section0;
+mod section1;
+mod section2;
+mod section3;
+mod section4;
+mod section5;
+mod section6;
+mod section7;
+mod section8;
 
-pub mod section0;
-pub mod section1;
-pub mod section2;
-pub mod section3;
-pub mod section4;
-pub mod section5;
-pub mod section6;
-pub mod section7;
-pub mod section8;
+use crate::Grib2Result;
+pub use section0::Section0;
+pub use section1::Section1;
+pub use section2::Section2;
+pub use section3::{Section3, Section3_0};
+pub use section4::{Section4, Section4_50000, Section4_50008};
+pub use section5::{Section5, Section5_200i16};
+pub use section6::Section6;
+pub use section7::{Section7, Section7_200};
+pub use section8::Section8;
 
 /// GRIB2のテンプレートに実装するトレイト
 pub trait TemplateReader {
