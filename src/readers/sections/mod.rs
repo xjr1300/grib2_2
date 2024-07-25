@@ -15,7 +15,7 @@ pub use section0::Section0;
 pub use section1::Section1;
 pub use section2::Section2;
 pub use section3::{Section3, Section3_0};
-pub use section4::{Section4, Section4_50000, Section4_50008};
+pub use section4::{Section4, Section4_0, Section4_50000, Section4_50008};
 pub use section5::{Section5, Section5_200i16, Section5_200u16};
 pub use section6::Section6;
 pub use section7::{Section7, Section7_200};
