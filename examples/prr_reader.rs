@@ -3,7 +3,7 @@ use std::io::{BufWriter, Write};
 
 use anyhow::anyhow;
 
-use grib2_2::readers::prr::PrrReader;
+use grib2_2::readers::PrrReader;
 
 /// 実況のみを記録した土砂災害警戒判定メッシュファイル
 /// cspell: disable
