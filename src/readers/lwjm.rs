@@ -248,7 +248,7 @@ impl LwjmJudgment {
 }
 
 /// 土砂災害警戒判定時間
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum LwjmHour {
     /// 実況

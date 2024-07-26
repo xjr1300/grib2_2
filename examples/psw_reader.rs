@@ -3,8 +3,7 @@ use std::io::{BufWriter, Write};
 
 use anyhow::anyhow;
 
-use grib2_2::readers::psw::{PswReader, PswTank};
-use grib2_2::readers::records::Grib2RecordIter;
+use grib2_2::readers::{Grib2RecordIter, PswReader, PswTank};
 
 /// 実況と1時間から3時間までの予想を記録した土砂災害警戒判定メッシュファイル
 /// cspell: disable
