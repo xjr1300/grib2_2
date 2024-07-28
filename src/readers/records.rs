@@ -77,7 +77,7 @@ where
         })?;
         self.read_bytes += 1;
 
-        Ok(u8::from_be_bytes(buf))
+        Ok(buf[0])
     }
 
     /// GRIB2ファイルの現在のファイルポインターの位置からランレングス符号を読み込む。
