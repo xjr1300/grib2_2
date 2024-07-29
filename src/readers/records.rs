@@ -5,6 +5,7 @@ use num_format::{Locale, ToFormattedString};
 use crate::{Grib2Error, Grib2Result};
 
 /// GRIB2が第7節に記録しているレコード
+#[derive(Debug, Clone, Copy)]
 pub struct Grib2Record<T>
 where
     T: Clone + Copy,
@@ -77,7 +78,7 @@ where
         })?;
         self.read_bytes += 1;
 
-        Ok(u8::from_be_bytes(buf))
+        Ok(buf[0])
     }
 
     /// GRIB2ファイルの現在のファイルポインターの位置からランレングス符号を読み込む。

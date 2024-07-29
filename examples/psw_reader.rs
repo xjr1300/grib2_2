@@ -5,7 +5,7 @@ use anyhow::anyhow;
 
 use grib2_2::readers::{Grib2RecordIter, PswReader, PswTank};
 
-/// 実況と1時間から3時間までの予想を記録した土砂災害警戒判定メッシュファイル
+/// 土壌雨量指数ファイル
 /// cspell: disable
 #[rustfmt::skip]
 const SRC_PATH: &str = "resources/Z__C_RJTD_20170807170000_SRF_GPV_Ggis1km_Psw_Aper10min_ANAL_grib2.bin";
