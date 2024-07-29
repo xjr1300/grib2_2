@@ -5,6 +5,7 @@ use num_format::{Locale, ToFormattedString};
 use crate::{Grib2Error, Grib2Result};
 
 /// GRIB2が第7節に記録しているレコード
+#[derive(Debug, Clone, Copy)]
 pub struct Grib2Record<T>
 where
     T: Clone + Copy,
