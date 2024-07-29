@@ -1,6 +1,6 @@
 use std::fs::{File, OpenOptions};
-use std::io::{BufReader, Seek as _, SeekFrom};
-use std::path::{Path, PathBuf};
+use std::io::{BufReader, Seek, SeekFrom};
+use std::path::Path;
 
 use crate::readers::records::{Grib2RecordIter, Grib2RecordIterBuilder};
 use crate::readers::sections::{
@@ -11,8 +11,8 @@ use crate::{Grib2Error, Grib2Result};
 
 /// 解析雨量ファイルリーダー
 pub struct PrrReader {
-    /// ファイルパス
-    pub path: PathBuf,
+    /// ファイルリーダー
+    reader: BufReader<File>,
     /// 第0節:指示節
     section0: Section0,
     /// 第1節:識別節
@@ -64,7 +64,7 @@ impl PrrReader {
         let section8 = Section8::from_reader(&mut reader)?;
 
         Ok(Self {
-            path: path.to_path_buf(),
+            reader,
             section0,
             section1,
             section2,
@@ -75,15 +75,6 @@ impl PrrReader {
             section7,
             section8,
         })
-    }
-
-    /// 開いている土砂災害警戒判定メッシュファイルのパスを返す。
-    ///
-    /// # 戻り値
-    ///
-    /// * 開いている土砂災害警戒判定メッシュファイルのパス
-    pub fn path(&self) -> &Path {
-        &self.path
     }
 
     /// 第0節:指示節を返す。
@@ -173,24 +164,14 @@ impl PrrReader {
     ///
     /// * レコードを反復処理するイテレーター
     pub fn record_iter(&mut self) -> Grib2Result<Grib2RecordIter<'_, File, u16>> {
-        // 解析雨量ファイルを開く
-        if !self.path.is_file() {
-            return Err(Grib2Error::FileDoesNotExist);
-        }
-        let file = OpenOptions::new()
-            .read(true)
-            .open(&self.path)
-            .map_err(|e| Grib2Error::Unexpected(e.into()))?;
-        let mut reader = BufReader::new(file);
-
         // ランレングス符号の開始位置にファイルポインターを移動
-        reader
+        self.reader
             .seek(SeekFrom::Start(self.section7.run_length_position() as u64))
             .map_err(|e| Grib2Error::Unexpected(e.into()))?;
 
         // イテレーターを構築
         Grib2RecordIterBuilder::new()
-            .reader(reader)
+            .reader(&mut self.reader)
             .total_bytes(self.section7.run_length_bytes())
             .number_of_points(self.section3.number_of_data_points())
             .lat_max(self.section3.lat_of_first_grid_point())

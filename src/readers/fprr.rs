@@ -1,6 +1,6 @@
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Read, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::readers::records::{Grib2RecordIter, Grib2RecordIterBuilder};
 use crate::readers::sections::{
@@ -12,8 +12,8 @@ use crate::{Grib2Error, Grib2Result};
 
 /// 降水短時間予報ファイルリーダー
 pub struct FPrrReader {
-    /// ファイルパス
-    pub path: PathBuf,
+    /// ファイルリーダー
+    reader: BufReader<File>,
     /// 第0節:指示節
     section0: Section0,
     /// 第1節:識別節
@@ -23,7 +23,7 @@ pub struct FPrrReader {
     /// 第3節:格子系定義節
     section3: Section3_0,
     /// 第4節:プロダクト定義節から第7節:資料節
-    forecasts: [FPrrForecast; 6],
+    fprr_sections: [FPrrSections; 6],
     /// 第8節:終端節
     section8: Section8,
     /// 予想降水量の座標
@@ -32,7 +32,7 @@ pub struct FPrrReader {
     precipitations: [Vec<Option<u16>>; 6],
 }
 
-pub struct FPrrForecast {
+pub struct FPrrSections {
     /// 第4節:プロダクト定義節
     pub section4: Section4_50009,
     /// 第5節:資料表現節
@@ -67,46 +67,37 @@ impl FPrrReader {
         let section1 = Section1::from_reader(&mut reader)?;
         let section2 = Section2;
         let section3 = Section3_0::from_reader(&mut reader)?;
-        let forecasts = [
-            FPrrForecast::from_reader(&mut reader)?,
-            FPrrForecast::from_reader(&mut reader)?,
-            FPrrForecast::from_reader(&mut reader)?,
-            FPrrForecast::from_reader(&mut reader)?,
-            FPrrForecast::from_reader(&mut reader)?,
-            FPrrForecast::from_reader(&mut reader)?,
+        let fprr_sections = [
+            FPrrSections::from_reader(&mut reader)?,
+            FPrrSections::from_reader(&mut reader)?,
+            FPrrSections::from_reader(&mut reader)?,
+            FPrrSections::from_reader(&mut reader)?,
+            FPrrSections::from_reader(&mut reader)?,
+            FPrrSections::from_reader(&mut reader)?,
         ];
         let section8 = Section8::from_reader(&mut reader)?;
 
         // 予想降水量を読み込み
-        let hour1 = read_precipitation(path, &section3, &forecasts[0])?;
-        let hour2 = read_precipitation(path, &section3, &forecasts[1])?;
-        let hour3 = read_precipitation(path, &section3, &forecasts[2])?;
-        let hour4 = read_precipitation(path, &section3, &forecasts[3])?;
-        let hour5 = read_precipitation(path, &section3, &forecasts[4])?;
-        let hour6 = read_precipitation(path, &section3, &forecasts[5])?;
+        let hour1 = read_records(&mut reader, &section3, &fprr_sections[0])?;
+        let hour2 = read_preps(&mut reader, &section3, &fprr_sections[1])?;
+        let hour3 = read_preps(&mut reader, &section3, &fprr_sections[1])?;
+        let hour4 = read_preps(&mut reader, &section3, &fprr_sections[1])?;
+        let hour5 = read_preps(&mut reader, &section3, &fprr_sections[1])?;
+        let hour6 = read_preps(&mut reader, &section3, &fprr_sections[1])?;
         let coordinates = hour1.0;
-        let precipitations = [hour1.1, hour2.1, hour3.1, hour4.1, hour5.1, hour6.1];
+        let precipitations = [hour1.1, hour2, hour3, hour4, hour5, hour6];
 
         Ok(Self {
-            path: path.to_path_buf(),
+            reader,
             section0,
             section1,
             section2,
             section3,
-            forecasts,
+            fprr_sections,
             section8,
             coordinates,
             precipitations,
         })
-    }
-
-    /// 開いている土砂災害警戒判定メッシュファイルのパスを返す。
-    ///
-    /// # 戻り値
-    ///
-    /// * 開いている土砂災害警戒判定メッシュファイルのパス
-    pub fn path(&self) -> &Path {
-        &self.path
     }
 
     /// 第0節:指示節を返す。
@@ -154,8 +145,8 @@ impl FPrrReader {
     /// # 戻り値
     ///
     /// * 第4節:プロダクト定義節から第7節:資料節
-    pub fn forecast(&self, hour: ForecastHour) -> &FPrrForecast {
-        &self.forecasts[hour as u8 as usize - 1]
+    pub fn fprr_sections(&self, hour: ForecastHour) -> &FPrrSections {
+        &self.fprr_sections[hour as u8 as usize - 1]
     }
 
     /// 第8節:終端節を返す。
@@ -180,37 +171,27 @@ impl FPrrReader {
         &mut self,
         hour: ForecastHour,
     ) -> Grib2Result<Grib2RecordIter<'_, File, u16>> {
-        // 降水短時間予報ファイルを開く
-        if !self.path.is_file() {
-            return Err(Grib2Error::FileDoesNotExist);
-        }
-        let file = OpenOptions::new()
-            .read(true)
-            .open(&self.path)
-            .map_err(|e| Grib2Error::Unexpected(e.into()))?;
-        let mut reader = BufReader::new(file);
-
         // ランレングス符号の開始位置にファイルポインターを移動
-        let forecast = self.forecast(hour);
-        reader
+        let sections = &self.fprr_sections[hour as u8 as usize];
+        self.reader
             .seek(SeekFrom::Start(
-                forecast.section7.run_length_position() as u64
+                sections.section7.run_length_position() as u64
             ))
             .map_err(|e| Grib2Error::Unexpected(e.into()))?;
 
         // イテレーターを構築
         Grib2RecordIterBuilder::new()
-            .reader(reader)
-            .total_bytes(forecast.section7.run_length_bytes())
+            .reader(&mut self.reader)
+            .total_bytes(sections.section7.run_length_bytes())
             .number_of_points(self.section3.number_of_data_points())
             .lat_max(self.section3.lat_of_first_grid_point())
             .lon_min(self.section3.lon_of_first_grid_point())
             .lon_max(self.section3.lon_of_last_grid_point())
             .lat_inc(self.section3.j_direction_increment())
             .lon_inc(self.section3.i_direction_increment())
-            .nbit(forecast.section5.bits_per_value() as u16)
-            .maxv(forecast.section5.max_level_value())
-            .level_values(forecast.section5.level_values())
+            .nbit(sections.section5.bits_per_value() as u16)
+            .maxv(sections.section5.max_level_value())
+            .level_values(sections.section5.level_values())
             .build()
     }
 
@@ -285,46 +266,41 @@ impl<'a> Iterator for FPrrPrepIterator<'a> {
     }
 }
 
-/// 予想降水量を読み込む。
+/// 座標値と予想降水量を読み込む。
 ///
 /// # 引数
 ///
-/// * `path` - 降水短時間保養ファイルのパス
-/// * `forecasts` - 第4節:プロダクト定義節から第7節:資料節
+/// * `reader` - 降水短時間予報リーダー
+/// * `section3` - 第3節:格子系定義節
+/// * `fprr_sections` - 第4節:プロダクト定義節から第7節:資料節
 ///
 /// # 戻り値
 ///
 /// * 座標値と予想降水量を格納したタプル
-fn read_precipitation<P: AsRef<Path>>(
-    path: P,
+fn read_records(
+    reader: &mut BufReader<File>,
     section3: &Section3_0,
-    forecast: &FPrrForecast,
+    fprr_sections: &FPrrSections,
 ) -> Grib2Result<(Vec<Coordinate>, Vec<Option<u16>>)> {
-    // ランレングス符号の開始位置にファイルポインターを移動
-    let file = OpenOptions::new()
-        .read(true)
-        .open(&path)
-        .map_err(|e| Grib2Error::Unexpected(e.into()))?;
-    let mut reader = BufReader::new(file);
     reader
         .seek(SeekFrom::Start(
-            forecast.section7.run_length_position() as u64
+            fprr_sections.section7.run_length_position() as u64,
         ))
         .map_err(|e| Grib2Error::Unexpected(e.into()))?;
 
     // イテレーターを構築
     let iter = Grib2RecordIterBuilder::new()
         .reader(reader)
-        .total_bytes(forecast.section7.run_length_bytes())
+        .total_bytes(fprr_sections.section7.run_length_bytes())
         .number_of_points(section3.number_of_data_points())
         .lat_max(section3.lat_of_first_grid_point())
         .lon_min(section3.lon_of_first_grid_point())
         .lon_max(section3.lon_of_last_grid_point())
         .lat_inc(section3.j_direction_increment())
         .lon_inc(section3.i_direction_increment())
-        .nbit(forecast.section5.bits_per_value() as u16)
-        .maxv(forecast.section5.max_level_value())
-        .level_values(forecast.section5.level_values())
+        .nbit(fprr_sections.section5.bits_per_value() as u16)
+        .maxv(fprr_sections.section5.max_level_value())
+        .level_values(fprr_sections.section5.level_values())
         .build()?;
 
     // 指定された予報時間の降水量を読み込み
@@ -341,7 +317,53 @@ fn read_precipitation<P: AsRef<Path>>(
     Ok((coordinates, precipitations))
 }
 
-impl FPrrForecast {
+/// 予想降水量を読み込む。
+///
+/// # 引数
+///
+/// * `reader` - 降水短時間予報リーダー
+/// * `section3` - 第3節:格子系定義節
+/// * `fprr_sections` - 第4節:プロダクト定義節から第7節:資料節
+///
+/// # 戻り値
+///
+/// * 座標値と予想降水量を格納したタプル
+fn read_preps(
+    reader: &mut BufReader<File>,
+    section3: &Section3_0,
+    fprr_sections: &FPrrSections,
+) -> Grib2Result<Vec<Option<u16>>> {
+    reader
+        .seek(SeekFrom::Start(
+            fprr_sections.section7.run_length_position() as u64,
+        ))
+        .map_err(|e| Grib2Error::Unexpected(e.into()))?;
+
+    // イテレーターを構築
+    let iter = Grib2RecordIterBuilder::new()
+        .reader(reader)
+        .total_bytes(fprr_sections.section7.run_length_bytes())
+        .number_of_points(section3.number_of_data_points())
+        .lat_max(section3.lat_of_first_grid_point())
+        .lon_min(section3.lon_of_first_grid_point())
+        .lon_max(section3.lon_of_last_grid_point())
+        .lat_inc(section3.j_direction_increment())
+        .lon_inc(section3.i_direction_increment())
+        .nbit(fprr_sections.section5.bits_per_value() as u16)
+        .maxv(fprr_sections.section5.max_level_value())
+        .level_values(fprr_sections.section5.level_values())
+        .build()?;
+
+    // 指定された予報時間の降水量を読み込み
+    let mut precipitations = vec![];
+    for record in iter.flatten() {
+        precipitations.push(record.value);
+    }
+
+    Ok(precipitations)
+}
+
+impl FPrrSections {
     /// 第4節:プロダクト定義節から第7節:資料節を読み込む。
     ///
     /// # 引数

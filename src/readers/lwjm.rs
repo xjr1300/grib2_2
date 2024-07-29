@@ -1,6 +1,6 @@
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Read, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::readers::records::{Grib2RecordIter, Grib2RecordIterBuilder};
 use crate::readers::sections::{
@@ -16,22 +16,22 @@ use crate::{Grib2Error, Grib2Result};
 /// * 実況の土砂災害警戒判定
 /// * 実況と1時間から3時間予想までの土砂災害警戒判定
 pub struct LwjmReader {
-    /// ファイルパス
-    pub path: PathBuf,
+    /// ファイルリーダー
+    reader: BufReader<File>,
     /// 土砂災害警戒判定メッシュファイルが、1時間から3時間までの判定を含んでいるかを示すフラグ
-    pub has_forecast: bool,
+    has_forecast: bool,
     /// 第0節:指示節
-    pub section0: Section0,
+    section0: Section0,
     /// 第1節:識別節
-    pub section1: Section1,
+    section1: Section1,
     /// 第2節:地域使用節
-    pub section2: Section2,
+    section2: Section2,
     /// 第3節:格子系定義節
-    pub section3: Section3_0,
+    section3: Section3_0,
     /// 第4節:プロダクト定義節から第7節:資料節を格納したベクター
-    pub lwjm_sections: Vec<LwjmSections>,
+    lwjm_sections: Vec<LwjmSections>,
     /// 第8節:終端節
-    pub section8: Section8,
+    section8: Section8,
 }
 
 /// 第4節:プロダクト定義節から第7節:資料節
@@ -84,7 +84,7 @@ impl LwjmReader {
         let section8 = Section8::from_reader(&mut reader)?;
 
         Ok(Self {
-            path: path.to_path_buf(),
+            reader,
             has_forecast,
             section0,
             section1,
@@ -93,15 +93,6 @@ impl LwjmReader {
             lwjm_sections: judgments,
             section8,
         })
-    }
-
-    /// 開いている土砂災害警戒判定メッシュファイルのパスを返す。
-    ///
-    /// # 戻り値
-    ///
-    /// * 開いている土砂災害警戒判定メッシュファイルのパス
-    pub fn path(&self) -> &Path {
-        &self.path
     }
 
     /// 第0節:指示節を返す。
@@ -184,38 +175,27 @@ impl LwjmReader {
                 "土砂災害警戒判定メッシュファイルは予測を記録していません。".into(),
             ));
         }
-        let judgment = &self.lwjm_sections[hour as u8 as usize];
-
-        // 土砂災害警戒判定メッシュファイルを開く
-        if !self.path.is_file() {
-            return Err(Grib2Error::FileDoesNotExist);
-        }
-        let file = OpenOptions::new()
-            .read(true)
-            .open(&self.path)
-            .map_err(|e| Grib2Error::Unexpected(e.into()))?;
-        let mut reader = BufReader::new(file);
-
+        let sections = &self.lwjm_sections[hour as u8 as usize];
         // ランレングス符号の開始位置にファイルポインターを移動
-        reader
+        self.reader
             .seek(SeekFrom::Start(
-                judgment.section7.run_length_position() as u64
+                sections.section7.run_length_position() as u64
             ))
             .map_err(|e| Grib2Error::Unexpected(e.into()))?;
 
         // イテレーターを構築
         Grib2RecordIterBuilder::new()
-            .reader(reader)
-            .total_bytes(judgment.section7.run_length_bytes())
+            .reader(&mut self.reader)
+            .total_bytes(sections.section7.run_length_bytes())
             .number_of_points(self.section3.number_of_data_points())
             .lat_max(self.section3.lat_of_first_grid_point())
             .lon_min(self.section3.lon_of_first_grid_point())
             .lon_max(self.section3.lon_of_last_grid_point())
             .lat_inc(self.section3.j_direction_increment())
             .lon_inc(self.section3.i_direction_increment())
-            .nbit(judgment.section5.bits_per_value() as u16)
-            .maxv(judgment.section5.max_level_value())
-            .level_values(judgment.section5.level_values())
+            .nbit(sections.section5.bits_per_value() as u16)
+            .maxv(sections.section5.max_level_value())
+            .level_values(sections.section5.level_values())
             .build()
     }
 }

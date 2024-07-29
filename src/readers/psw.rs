@@ -1,6 +1,6 @@
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Read, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::readers::records::{Grib2RecordIter, Grib2RecordIterBuilder};
 use crate::readers::sections::{
@@ -11,8 +11,8 @@ use crate::{Grib2Error, Grib2Result};
 
 /// 土壌雨量指数実況値リーダー
 pub struct PswReader {
-    /// ファイルのパス
-    pub path: PathBuf,
+    /// ファイルリーダー
+    reader: BufReader<File>,
     /// 第0節:指示節
     section0: Section0,
     /// 第1節:識別節
@@ -62,7 +62,7 @@ impl PswReader {
         let section8 = Section8::from_reader(&mut reader)?;
 
         Ok(Self {
-            path: path.to_path_buf(),
+            reader,
             section0,
             section1,
             section2,
@@ -70,15 +70,6 @@ impl PswReader {
             psw_sections: tank_sections,
             section8,
         })
-    }
-
-    /// 開いている土砂災害警戒判定メッシュファイルのパスを返す。
-    ///
-    /// # 戻り値
-    ///
-    /// * 開いている土砂災害警戒判定メッシュファイルのパス
-    pub fn path(&self) -> &Path {
-        &self.path
     }
 
     /// 第0節:指示節を返す。
@@ -149,20 +140,9 @@ impl PswReader {
     ///
     /// * 指定された土砂災害警戒判定時間のレコードを反復処理するイテレーター
     pub fn record_iter(&mut self, tank: PswTank) -> Grib2Result<Grib2RecordIter<'_, File, u16>> {
-        let tank_section = &self.psw_sections[tank as u8 as usize];
-
-        // 土壌雨量指数ファイルを開く
-        if !self.path.is_file() {
-            return Err(Grib2Error::FileDoesNotExist);
-        }
-        let file = OpenOptions::new()
-            .read(true)
-            .open(&self.path)
-            .map_err(|e| Grib2Error::Unexpected(e.into()))?;
-        let mut reader = BufReader::new(file);
-
         // ランレングス符号の開始位置にファイルポインターを移動
-        reader
+        let tank_section = &self.psw_sections[tank as u8 as usize];
+        self.reader
             .seek(SeekFrom::Start(
                 tank_section.section7.run_length_position() as u64
             ))
@@ -170,7 +150,7 @@ impl PswReader {
 
         // イテレーターを構築
         Grib2RecordIterBuilder::new()
-            .reader(reader)
+            .reader(&mut self.reader)
             .total_bytes(tank_section.section7.run_length_bytes())
             .number_of_points(self.section3.number_of_data_points())
             .lat_max(self.section3.lat_of_first_grid_point())

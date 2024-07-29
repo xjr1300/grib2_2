@@ -115,10 +115,10 @@ impl ForecastRange {
     pub(crate) fn contains(&self, hour: ForecastHour) -> bool {
         match self {
             Self::Hours6 => true,
-            Self::Hours3 => match hour {
-                ForecastHour::Hour1 | ForecastHour::Hour2 | ForecastHour::Hour3 => true,
-                _ => false,
-            },
+            Self::Hours3 => matches!(
+                hour,
+                ForecastHour::Hour1 | ForecastHour::Hour2 | ForecastHour::Hour3
+            ),
         }
     }
 }
