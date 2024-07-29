@@ -1,14 +1,13 @@
-use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
-use crate::readers::coordinates::Coordinate;
 use crate::readers::records::{Grib2RecordIter, Grib2RecordIterBuilder};
 use crate::readers::sections::{
     Section0, Section1, Section2, Section3_0, Section4_50009, Section5_200u16, Section6,
     Section7_200, Section8,
 };
+use crate::readers::{Coordinate, ForecastHour};
 use crate::{Grib2Error, Grib2Result};
 
 /// 降水短時間予報ファイルリーダー
@@ -30,7 +29,7 @@ pub struct FPrrReader {
     /// 予想降水量の座標
     coordinates: Vec<Coordinate>,
     /// 予想降水量
-    precipitations: [HashMap<Coordinate, Option<u16>>; 6],
+    precipitations: [Vec<Option<u16>>; 6],
 }
 
 pub struct FPrrForecast {
@@ -42,23 +41,6 @@ pub struct FPrrForecast {
     pub section6: Section6,
     /// 第7節:資料節
     pub section7: Section7_200,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[repr(u8)]
-pub enum FPrrHour {
-    /// 1時間予想
-    Hour1 = 1,
-    /// 2時間予想
-    Hour2 = 2,
-    /// 3時間予想
-    Hour3 = 3,
-    /// 4時間予想
-    Hour4 = 4,
-    /// 5時間予想
-    Hour5 = 5,
-    /// 6時間予想
-    Hour6 = 6,
 }
 
 impl FPrrReader {
@@ -96,20 +78,14 @@ impl FPrrReader {
         let section8 = Section8::from_reader(&mut reader)?;
 
         // 予想降水量を読み込み
-        let precipitations = [
-            read_precipitation(path, &section3, &forecasts[0])?,
-            read_precipitation(path, &section3, &forecasts[1])?,
-            read_precipitation(path, &section3, &forecasts[2])?,
-            read_precipitation(path, &section3, &forecasts[3])?,
-            read_precipitation(path, &section3, &forecasts[4])?,
-            read_precipitation(path, &section3, &forecasts[5])?,
-        ];
-        // 予想降水量を記録している座標
-        let mut coordinates = precipitations[0]
-            .keys()
-            .map(|k| k.to_owned())
-            .collect::<Vec<Coordinate>>();
-        coordinates.sort();
+        let hour1 = read_precipitation(path, &section3, &forecasts[0])?;
+        let hour2 = read_precipitation(path, &section3, &forecasts[1])?;
+        let hour3 = read_precipitation(path, &section3, &forecasts[2])?;
+        let hour4 = read_precipitation(path, &section3, &forecasts[3])?;
+        let hour5 = read_precipitation(path, &section3, &forecasts[4])?;
+        let hour6 = read_precipitation(path, &section3, &forecasts[5])?;
+        let coordinates = hour1.0;
+        let precipitations = [hour1.1, hour2.1, hour3.1, hour4.1, hour5.1, hour6.1];
 
         Ok(Self {
             path: path.to_path_buf(),
@@ -178,7 +154,7 @@ impl FPrrReader {
     /// # 戻り値
     ///
     /// * 第4節:プロダクト定義節から第7節:資料節
-    pub fn forecast(&self, hour: FPrrHour) -> &FPrrForecast {
+    pub fn forecast(&self, hour: ForecastHour) -> &FPrrForecast {
         &self.forecasts[hour as u8 as usize - 1]
     }
 
@@ -200,7 +176,10 @@ impl FPrrReader {
     /// # 戻り値
     ///
     /// * 指定された予報時間のレコードを反復処理するイテレーター
-    pub fn record_iter(&mut self, hour: FPrrHour) -> Grib2Result<Grib2RecordIter<'_, File, u16>> {
+    pub fn record_iter(
+        &mut self,
+        hour: ForecastHour,
+    ) -> Grib2Result<Grib2RecordIter<'_, File, u16>> {
         // 降水短時間予報ファイルを開く
         if !self.path.is_file() {
             return Err(Grib2Error::FileDoesNotExist);
@@ -244,7 +223,7 @@ impl FPrrReader {
     /// # 戻り値
     ///
     /// * 予想降水量を反復操作するイテレーター
-    pub fn prep_iter(&self) -> FPrrPrepIterator {
+    pub fn value_iter(&self) -> FPrrPrepIterator {
         FPrrPrepIterator {
             index: 0,
             coordinates: &self.coordinates,
@@ -253,7 +232,7 @@ impl FPrrReader {
     }
 }
 
-pub struct FPrrPrep {
+pub struct FPrrValue {
     /// 緯度
     pub lat: u32,
     /// 経度
@@ -278,31 +257,25 @@ pub struct FPrrPrepIterator<'a> {
     /// 座標を格納したスライスへの参照
     coordinates: &'a [Coordinate],
     /// キーと値に座標と予想降水量を格納したハッシュマップを格納したスライスへの参照
-    precipitations: &'a [HashMap<Coordinate, Option<u16>>],
+    precipitations: &'a [Vec<Option<u16>>; 6],
 }
 
 impl<'a> Iterator for FPrrPrepIterator<'a> {
-    type Item = FPrrPrep;
+    type Item = FPrrValue;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.index < self.coordinates.len() {
             true => {
                 let coordinate = self.coordinates[self.index];
-                let hour1 = self.precipitations[0].get(&coordinate).unwrap();
-                let hour2 = self.precipitations[1].get(&coordinate).unwrap();
-                let hour3 = self.precipitations[2].get(&coordinate).unwrap();
-                let hour4 = self.precipitations[3].get(&coordinate).unwrap();
-                let hour5 = self.precipitations[4].get(&coordinate).unwrap();
-                let hour6 = self.precipitations[4].get(&coordinate).unwrap();
-                let prep = FPrrPrep {
+                let prep = FPrrValue {
                     lat: coordinate.lat,
                     lon: coordinate.lon,
-                    hour1: *hour1,
-                    hour2: *hour2,
-                    hour3: *hour3,
-                    hour4: *hour4,
-                    hour5: *hour5,
-                    hour6: *hour6,
+                    hour1: self.precipitations[0][self.index],
+                    hour2: self.precipitations[1][self.index],
+                    hour3: self.precipitations[2][self.index],
+                    hour4: self.precipitations[3][self.index],
+                    hour5: self.precipitations[4][self.index],
+                    hour6: self.precipitations[5][self.index],
                 };
                 self.index += 1;
                 Some(prep)
@@ -321,12 +294,12 @@ impl<'a> Iterator for FPrrPrepIterator<'a> {
 ///
 /// # 戻り値
 ///
-/// * キーと値に緯度と経度と予想降水量を持つハッシュマップ
+/// * 座標値と予想降水量を格納したタプル
 fn read_precipitation<P: AsRef<Path>>(
     path: P,
     section3: &Section3_0,
     forecast: &FPrrForecast,
-) -> Grib2Result<HashMap<Coordinate, Option<u16>>> {
+) -> Grib2Result<(Vec<Coordinate>, Vec<Option<u16>>)> {
     // ランレングス符号の開始位置にファイルポインターを移動
     let file = OpenOptions::new()
         .read(true)
@@ -355,13 +328,17 @@ fn read_precipitation<P: AsRef<Path>>(
         .build()?;
 
     // 指定された予報時間の降水量を読み込み
-    let mut precipitations = HashMap::new();
+    let mut coordinates = vec![];
+    let mut precipitations = vec![];
     for record in iter.flatten() {
-        let coordinate: Coordinate = record.into();
-        precipitations.insert(coordinate, record.value);
+        coordinates.push(Coordinate {
+            lat: record.lat,
+            lon: record.lon,
+        });
+        precipitations.push(record.value);
     }
 
-    Ok(precipitations)
+    Ok((coordinates, precipitations))
 }
 
 impl FPrrForecast {
@@ -386,22 +363,5 @@ impl FPrrForecast {
             section6,
             section7,
         })
-    }
-}
-impl TryFrom<u8> for FPrrHour {
-    type Error = Grib2Error;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            1 => Ok(Self::Hour1),
-            2 => Ok(Self::Hour2),
-            3 => Ok(Self::Hour3),
-            4 => Ok(Self::Hour4),
-            5 => Ok(Self::Hour5),
-            6 => Ok(Self::Hour6),
-            _ => Err(Grib2Error::ConvertError(
-                format!("`{value}`を`FPrrHour`型に変換できません。").into(),
-            )),
-        }
     }
 }

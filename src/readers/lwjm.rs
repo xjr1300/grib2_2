@@ -29,13 +29,13 @@ pub struct LwjmReader {
     /// 第3節:格子系定義節
     pub section3: Section3_0,
     /// 第4節:プロダクト定義節から第7節:資料節を格納したベクター
-    pub judgments: Vec<LwjmJudgment>,
+    pub lwjm_sections: Vec<LwjmSections>,
     /// 第8節:終端節
     pub section8: Section8,
 }
 
 /// 第4節:プロダクト定義節から第7節:資料節
-pub struct LwjmJudgment {
+pub struct LwjmSections {
     /// 第4節:プロダクト定義節
     pub section4: Section4_50000,
     /// 第5節:資料表現節
@@ -73,12 +73,12 @@ impl LwjmReader {
         let section2 = Section2;
         let section3 = Section3_0::from_reader(&mut reader)?;
         let judgments = match has_forecast {
-            false => vec![LwjmJudgment::from_reader(&mut reader)?],
+            false => vec![LwjmSections::from_reader(&mut reader)?],
             true => vec![
-                LwjmJudgment::from_reader(&mut reader)?,
-                LwjmJudgment::from_reader(&mut reader)?,
-                LwjmJudgment::from_reader(&mut reader)?,
-                LwjmJudgment::from_reader(&mut reader)?,
+                LwjmSections::from_reader(&mut reader)?,
+                LwjmSections::from_reader(&mut reader)?,
+                LwjmSections::from_reader(&mut reader)?,
+                LwjmSections::from_reader(&mut reader)?,
             ],
         };
         let section8 = Section8::from_reader(&mut reader)?;
@@ -90,7 +90,7 @@ impl LwjmReader {
             section1,
             section2,
             section3,
-            judgments,
+            lwjm_sections: judgments,
             section8,
         })
     }
@@ -145,7 +145,7 @@ impl LwjmReader {
     /// # 戻り値
     ///
     /// * 第4節:プロダクト定義節から第7節:資料節
-    pub fn judgment(&self, hour: LwjmHour) -> Grib2Result<&LwjmJudgment> {
+    pub fn lwjm_sections(&self, hour: LwjmHour) -> Grib2Result<&LwjmSections> {
         // 指定された土砂災害警戒判定時間の判定を取得
         // 実況以外、つまり1時間から3時間までの予測のいずれかで、土砂災害警戒判定メッシュファイルが
         // 予測を記録していない場合はエラー
@@ -154,7 +154,7 @@ impl LwjmReader {
                 "土砂災害警戒判定メッシュファイルは予測を記録していません。".into(),
             ));
         }
-        Ok(&self.judgments[(hour as u8) as usize])
+        Ok(&self.lwjm_sections[(hour as u8) as usize])
     }
 
     /// 第8節:終端節を返す。
@@ -184,7 +184,7 @@ impl LwjmReader {
                 "土砂災害警戒判定メッシュファイルは予測を記録していません。".into(),
             ));
         }
-        let judgment = &self.judgments[hour as u8 as usize];
+        let judgment = &self.lwjm_sections[hour as u8 as usize];
 
         // 土砂災害警戒判定メッシュファイルを開く
         if !self.path.is_file() {
@@ -220,7 +220,7 @@ impl LwjmReader {
     }
 }
 
-impl LwjmJudgment {
+impl LwjmSections {
     /// 第4節:プロダクト定義節から第7節:資料節を読み込む。
     ///
     /// # 引数

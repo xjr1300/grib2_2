@@ -23,7 +23,7 @@ fn main() -> anyhow::Result<()> {
         .open(DST_PATH)?;
     let mut writer = BufWriter::new(file);
     writer.write_all(b"lon,lat,hour1,hour2,hour3,hour4,hour5,hour6\n")?;
-    for record in reader.prep_iter() {
+    for record in reader.value_iter() {
         let lon = record.lon as f64 / 1e6;
         let lat = record.lat as f64 / 1e6;
         writer.write_fmt(format_args!(
