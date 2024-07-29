@@ -5,7 +5,7 @@ use anyhow::anyhow;
 
 use grib2_2::readers::PrrReader;
 
-/// 実況のみを記録した土砂災害警戒判定メッシュファイル
+/// 解析雨量ファイル
 /// cspell: disable
 #[rustfmt::skip]
 const SRC_PATH: &str = "resources/Z__C_RJTD_20161121010000_SRF_GPV_Ggis1km_Prr60lv_Aper10min_ANAL_grib2.bin";

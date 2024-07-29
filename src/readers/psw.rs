@@ -25,7 +25,7 @@ pub struct PswReader {
     /// インデックス1: 第一タンク
     /// インデックス2: 第二タンク
     /// タンク別に第4節:プロダクト定義節から第7節:資料節を格納した配列
-    tank_sections: [PswTankSections; 3],
+    tanks: [PswTanks; 3],
     /// 第８節:終端節
     section8: Section8,
 }
@@ -55,9 +55,9 @@ impl PswReader {
         let section2 = Section2;
         let section3 = Section3_0::from_reader(&mut reader)?;
         let tank_sections = [
-            PswTankSections::from_reader(&mut reader)?,
-            PswTankSections::from_reader(&mut reader)?,
-            PswTankSections::from_reader(&mut reader)?,
+            PswTanks::from_reader(&mut reader)?,
+            PswTanks::from_reader(&mut reader)?,
+            PswTanks::from_reader(&mut reader)?,
         ];
         let section8 = Section8::from_reader(&mut reader)?;
 
@@ -67,7 +67,7 @@ impl PswReader {
             section1,
             section2,
             section3,
-            tank_sections,
+            tanks: tank_sections,
             section8,
         })
     }
@@ -122,8 +122,8 @@ impl PswReader {
     /// # 戻り値
     ///
     /// * 第4節:プロダクト定義節から第7節:資料節
-    pub fn tank_sections(&self, tank: PswTank) -> &PswTankSections {
-        &self.tank_sections[tank as u8 as usize]
+    pub fn tank_sections(&self, tank: PswTank) -> &PswTanks {
+        &self.tanks[tank as u8 as usize]
     }
 
     /// 第8節:終端節を返す。
@@ -145,7 +145,7 @@ impl PswReader {
     ///
     /// * 指定された土砂災害警戒判定時間のレコードを反復処理するイテレーター
     pub fn record_iter(&mut self, tank: PswTank) -> Grib2Result<Grib2RecordIter<'_, File, u16>> {
-        let tank_section = &self.tank_sections[tank as u8 as usize];
+        let tank_section = &self.tanks[tank as u8 as usize];
 
         // 土壌雨量指数ファイルを開く
         if !self.path.is_file() {
@@ -182,7 +182,7 @@ impl PswReader {
 }
 
 /// 土壌雨量指数の第4節プロダクト定義節から第7節:資料節
-pub struct PswTankSections {
+pub struct PswTanks {
     /// 第4節:プロダクト定義節
     pub section4: Section4_0,
     /// 第5節:資料表現節
@@ -193,7 +193,7 @@ pub struct PswTankSections {
     pub section7: Section7_200,
 }
 
-impl PswTankSections {
+impl PswTanks {
     fn from_reader<R: Read + Seek>(reader: &mut BufReader<R>) -> Grib2Result<Self> {
         let section4 = Section4_0::from_reader(reader)?;
         let section5 = Section5_200u16::from_reader(reader)?;
