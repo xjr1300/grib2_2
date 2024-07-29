@@ -4,14 +4,14 @@ use std::io::{BufWriter, Write};
 
 use anyhow::anyhow;
 
-use grib2_2::readers::FPrrReader;
+use grib2_2::readers::{FPrrReader, FPrrValue};
 
 /// 降水短時間予報ファイル
 /// cspell: disable
 #[rustfmt::skip]
 const SRC_PATH: &str = "resources/Z__C_RJTD_20170807001000_SRF_GPV_Ggis1km_Prr60lv_Fper10min_FH01-06_grib2.bin";
 #[rustfmt::skip]
-const DST_PATH: &str = "resources/Z__C_RJTD_20170807001000_SRF_GPV_Ggis1km_Prr60lv_Fper10min_FH01-06_grib2.csv";
+const DST_PATH: &str = "resources/dst/Z__C_RJTD_20170807001000_SRF_GPV_Ggis1km_Prr60lv_Fper10min_FH01-06_grib2.csv";
 /// cspell: enable
 
 fn main() -> anyhow::Result<()> {
@@ -24,19 +24,30 @@ fn main() -> anyhow::Result<()> {
     let mut writer = BufWriter::new(file);
     writer.write_all(b"lon,lat,hour1,hour2,hour3,hour4,hour5,hour6\n")?;
     for record in reader.value_iter() {
-        let lon = record.lon as f64 / 1e6;
-        let lat = record.lat as f64 / 1e6;
-        writer.write_fmt(format_args!(
-            "{lon:.6},{lat:.6},{},{},{},{},{},{}\n",
-            format_prep(record.hour1),
-            format_prep(record.hour2),
-            format_prep(record.hour3),
-            format_prep(record.hour4),
-            format_prep(record.hour5),
-            format_prep(record.hour6)
-        ))?;
+        if should_write(&record) {
+            let lon = record.lon as f64 / 1e6;
+            let lat = record.lat as f64 / 1e6;
+            writer.write_fmt(format_args!(
+                "{lon:.6},{lat:.6},{},{},{},{},{},{}\n",
+                format_prep(record.hour1),
+                format_prep(record.hour2),
+                format_prep(record.hour3),
+                format_prep(record.hour4),
+                format_prep(record.hour5),
+                format_prep(record.hour6)
+            ))?;
+        }
     }
     writer.flush().map_err(|e| anyhow!(e))
+}
+
+fn should_write(record: &FPrrValue) -> bool {
+    record.hour1.is_some()
+        || record.hour2.is_some()
+        || record.hour3.is_some()
+        || record.hour4.is_some()
+        || record.hour5.is_some()
+        || record.hour6.is_some()
 }
 
 fn format_prep(value: Option<u16>) -> Cow<'static, str> {
