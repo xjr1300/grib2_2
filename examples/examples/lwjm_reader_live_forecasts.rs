@@ -1,9 +1,9 @@
-use std::fs::{File, OpenOptions};
-use std::io::{BufWriter, Write};
+use std::io::{Read, Seek, Write};
 
 use anyhow::anyhow;
 
 use grib2_2::readers::{Grib2RecordIter, LwjmHour, LwjmReader};
+use helpers::{buf_writer, should_write_record};
 
 /// 実況と1時間から3時間までの予想を記録した土砂災害警戒判定メッシュファイル
 /// cspell: disable
@@ -21,7 +21,6 @@ const DST_HOUR3_PATH: &str = "resources/dst/Z__C_RJTD_20180706095000_MET_INF_Jdo
 
 fn main() -> anyhow::Result<()> {
     let mut reader = LwjmReader::new(SRC_PATH, true)?;
-
     let dst_paths = [
         DST_LIVE_PATH,
         DST_HOUR1_PATH,
@@ -37,19 +36,19 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn output_judgement(iter: Grib2RecordIter<File, i16>, dst_path: &str) -> anyhow::Result<()> {
-    let file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(dst_path)?;
-    let mut writer = BufWriter::new(file);
-    writer.write_all(b"lon,lat,judgment\n")?;
+fn output_judgement<R: Read + Seek>(
+    iter: Grib2RecordIter<R, i16>,
+    dst_path: &str,
+) -> anyhow::Result<()> {
+    let mut writer = buf_writer(dst_path)?;
+    writer.write_all(b"lon,lat,value\n")?;
     for record in iter.flatten() {
-        let lon = record.lon as f64 / 1e6;
-        let lat = record.lat as f64 / 1e6;
-        if let Some(value) = record.value {
-            writer.write_fmt(format_args!("{lon:.6},{lat:.6},{value}\n"))?;
+        if should_write_record(&record) {
+            let lon = record.lon as f64 / 1e6;
+            let lat = record.lat as f64 / 1e6;
+            if let Some(value) = record.value {
+                writer.write_fmt(format_args!("{lon:.6},{lat:.6},{value}\n"))?;
+            }
         }
     }
     writer.flush().map_err(|e| anyhow!(e))

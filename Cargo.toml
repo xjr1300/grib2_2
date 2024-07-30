@@ -1,12 +1,3 @@
-[package]
-name = "grib2_2"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-num-format = "0.4.4"
-thiserror = "1.0.63"
-time = "0.3.36"
-
-[dev-dependencies]
-anyhow = "1.0.86"
+[workspace]
+members = [ "examples","grib2_2", "helpers"]
+resolver = "2"

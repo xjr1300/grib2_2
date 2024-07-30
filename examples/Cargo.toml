@@ -1,0 +1,11 @@
+[package]
+name = "examples"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+grib2_2 = { path = "../grib2_2" }
+helpers = { path = "../helpers" }
+
+[dev-dependencies]
+anyhow = "1.0.86"

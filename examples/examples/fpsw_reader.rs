@@ -1,10 +1,9 @@
-use std::borrow::Cow;
-use std::fs::OpenOptions;
-use std::io::{BufWriter, Write};
+use std::io::Write;
 
 use anyhow::anyhow;
 
 use grib2_2::readers::{FPswIndex, FPswReader, ForecastRange, PswTank};
+use helpers::{buf_writer, format_optional_value};
 
 /// 土壌水分量予想値ファイル
 /// cspell: disable
@@ -28,12 +27,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn write_file(reader: &mut FPswReader, tank: PswTank, dst_path: &str) -> anyhow::Result<()> {
-    let file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(dst_path)?;
-    let mut writer = BufWriter::new(file);
+    let mut writer = buf_writer(dst_path)?;
     writer.write_all(b"lon,lat,hour1,hour2,hour3,hour4,hour5,hour6\n")?;
     for record in reader.value_iter(tank) {
         if should_write(&record) {
@@ -41,12 +35,12 @@ fn write_file(reader: &mut FPswReader, tank: PswTank, dst_path: &str) -> anyhow:
             let lat = record.lat as f64 / 1e6;
             writer.write_fmt(format_args!(
                 "{lon:.6},{lat:.6},{},{},{},{},{},{}\n",
-                format_u16(record.hour1),
-                format_u16(record.hour2),
-                format_u16(record.hour3),
-                format_u16(record.hour4),
-                format_u16(record.hour5),
-                format_u16(record.hour6)
+                format_optional_value(record.hour1),
+                format_optional_value(record.hour2),
+                format_optional_value(record.hour3),
+                format_optional_value(record.hour4),
+                format_optional_value(record.hour5),
+                format_optional_value(record.hour6)
             ))?;
         }
     }
@@ -60,11 +54,4 @@ fn should_write(record: &FPswIndex) -> bool {
         || record.hour4.is_some()
         || record.hour5.is_some()
         || record.hour6.is_some()
-}
-
-fn format_u16(value: Option<u16>) -> Cow<'static, str> {
-    match value {
-        Some(value) => value.to_string().into(),
-        None => "".into(),
-    }
 }
