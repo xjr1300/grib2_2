@@ -24,13 +24,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "grib2_2"
+name = "examples"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "grib2_2",
+ "helpers",
+]
+
+[[package]]
+name = "grib2_2"
+version = "0.1.0"
+dependencies = [
  "num-format",
  "thiserror",
  "time",
+]
+
+[[package]]
+name = "helpers"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "grib2_2",
 ]
 
 [[package]]
