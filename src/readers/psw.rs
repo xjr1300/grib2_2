@@ -200,9 +200,9 @@ pub enum PswTank {
     /// 全タンク（土壌雨量指数）
     All = 0,
     /// 第1タンク
-    First = 1,
+    Tank1 = 1,
     /// 第2タンク
-    Second = 2,
+    Tank2 = 2,
 }
 
 impl TryFrom<u8> for PswTank {
@@ -211,8 +211,8 @@ impl TryFrom<u8> for PswTank {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0 => Ok(Self::All),
-            1 => Ok(Self::First),
-            2 => Ok(Self::Second),
+            1 => Ok(Self::Tank1),
+            2 => Ok(Self::Tank2),
             _ => Err(Grib2Error::ConvertError(
                 format!("`{value}`を`PswTank`型に変換できません。").into(),
             )),

@@ -11,6 +11,7 @@ use std::cmp::Ordering;
 
 use crate::Grib2Error;
 pub use fprr::{FPrrReader, FPrrValue, FPrrValueIterator};
+pub use fpsw::{FPswIndex, FPswIndexIterator, FPswReader};
 pub use lwjm::{LwjmHour, LwjmReader, LwjmSections};
 pub use prr::PrrReader;
 pub use psw::{PswReader, PswSections, PswTank};
