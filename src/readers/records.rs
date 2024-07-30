@@ -25,7 +25,7 @@ where
     R: Read,
 {
     /// ファイルリーダー
-    reader: BufReader<R>,
+    reader: &'a mut BufReader<R>,
     /// GRIB2ファイルに記録されている座標数
     number_of_points: u32,
     /// ランレングス圧縮符号を記録しているバイト数
@@ -177,7 +177,7 @@ where
     R: Read,
     V: Clone + Copy,
 {
-    reader: Option<BufReader<R>>,
+    reader: Option<&'a mut BufReader<R>>,
     total_bytes: Option<usize>,
     number_of_points: Option<u32>,
     lat_max: Option<u32>,
@@ -212,7 +212,7 @@ where
     }
 
     /// リーダーを設定する。
-    pub fn reader(mut self, reader: BufReader<R>) -> Self {
+    pub fn reader(mut self, reader: &'a mut BufReader<R>) -> Self {
         self.reader = Some(reader);
         self
     }

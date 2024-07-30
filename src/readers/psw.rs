@@ -1,6 +1,6 @@
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Read, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::readers::records::{Grib2RecordIter, Grib2RecordIterBuilder};
 use crate::readers::sections::{
@@ -9,10 +9,10 @@ use crate::readers::sections::{
 };
 use crate::{Grib2Error, Grib2Result};
 
-/// 土壌雨量指数値リーダー
+/// 土壌雨量指数実況値リーダー
 pub struct PswReader {
-    /// ファイルのパス
-    pub path: PathBuf,
+    /// ファイルリーダー
+    reader: BufReader<File>,
     /// 第0節:指示節
     section0: Section0,
     /// 第1節:識別節
@@ -25,7 +25,7 @@ pub struct PswReader {
     /// インデックス1: 第一タンク
     /// インデックス2: 第二タンク
     /// タンク別に第4節:プロダクト定義節から第7節:資料節を格納した配列
-    tanks: [PswTanks; 3],
+    psw_sections: [PswSections; 3],
     /// 第８節:終端節
     section8: Section8,
 }
@@ -55,30 +55,21 @@ impl PswReader {
         let section2 = Section2;
         let section3 = Section3_0::from_reader(&mut reader)?;
         let tank_sections = [
-            PswTanks::from_reader(&mut reader)?,
-            PswTanks::from_reader(&mut reader)?,
-            PswTanks::from_reader(&mut reader)?,
+            PswSections::from_reader(&mut reader)?,
+            PswSections::from_reader(&mut reader)?,
+            PswSections::from_reader(&mut reader)?,
         ];
         let section8 = Section8::from_reader(&mut reader)?;
 
         Ok(Self {
-            path: path.to_path_buf(),
+            reader,
             section0,
             section1,
             section2,
             section3,
-            tanks: tank_sections,
+            psw_sections: tank_sections,
             section8,
         })
-    }
-
-    /// 開いている土砂災害警戒判定メッシュファイルのパスを返す。
-    ///
-    /// # 戻り値
-    ///
-    /// * 開いている土砂災害警戒判定メッシュファイルのパス
-    pub fn path(&self) -> &Path {
-        &self.path
     }
 
     /// 第0節:指示節を返す。
@@ -119,11 +110,15 @@ impl PswReader {
 
     /// 指定されたタンクの第4節:プロダクト定義節から第7節:資料節を返す。
     ///
+    /// # 引数
+    ///
+    /// * `tank` - タンク
+    ///
     /// # 戻り値
     ///
     /// * 第4節:プロダクト定義節から第7節:資料節
-    pub fn tank_sections(&self, tank: PswTank) -> &PswTanks {
-        &self.tanks[tank as u8 as usize]
+    pub fn psw_sections(&self, tank: PswTank) -> &PswSections {
+        &self.psw_sections[tank as u8 as usize]
     }
 
     /// 第8節:終端節を返す。
@@ -145,20 +140,9 @@ impl PswReader {
     ///
     /// * 指定された土砂災害警戒判定時間のレコードを反復処理するイテレーター
     pub fn record_iter(&mut self, tank: PswTank) -> Grib2Result<Grib2RecordIter<'_, File, u16>> {
-        let tank_section = &self.tanks[tank as u8 as usize];
-
-        // 土壌雨量指数ファイルを開く
-        if !self.path.is_file() {
-            return Err(Grib2Error::FileDoesNotExist);
-        }
-        let file = OpenOptions::new()
-            .read(true)
-            .open(&self.path)
-            .map_err(|e| Grib2Error::Unexpected(e.into()))?;
-        let mut reader = BufReader::new(file);
-
         // ランレングス符号の開始位置にファイルポインターを移動
-        reader
+        let tank_section = &self.psw_sections[tank as u8 as usize];
+        self.reader
             .seek(SeekFrom::Start(
                 tank_section.section7.run_length_position() as u64
             ))
@@ -166,7 +150,7 @@ impl PswReader {
 
         // イテレーターを構築
         Grib2RecordIterBuilder::new()
-            .reader(reader)
+            .reader(&mut self.reader)
             .total_bytes(tank_section.section7.run_length_bytes())
             .number_of_points(self.section3.number_of_data_points())
             .lat_max(self.section3.lat_of_first_grid_point())
@@ -182,7 +166,7 @@ impl PswReader {
 }
 
 /// 土壌雨量指数の第4節プロダクト定義節から第7節:資料節
-pub struct PswTanks {
+pub struct PswSections {
     /// 第4節:プロダクト定義節
     pub section4: Section4_0,
     /// 第5節:資料表現節
@@ -193,8 +177,8 @@ pub struct PswTanks {
     pub section7: Section7_200,
 }
 
-impl PswTanks {
-    fn from_reader<R: Read + Seek>(reader: &mut BufReader<R>) -> Grib2Result<Self> {
+impl PswSections {
+    pub(crate) fn from_reader<R: Read + Seek>(reader: &mut BufReader<R>) -> Grib2Result<Self> {
         let section4 = Section4_0::from_reader(reader)?;
         let section5 = Section5_200u16::from_reader(reader)?;
         let section6 = Section6::from_reader(reader)?;
@@ -216,9 +200,9 @@ pub enum PswTank {
     /// 全タンク（土壌雨量指数）
     All = 0,
     /// 第1タンク
-    First = 1,
+    Tank1 = 1,
     /// 第2タンク
-    Second = 2,
+    Tank2 = 2,
 }
 
 impl TryFrom<u8> for PswTank {
@@ -227,8 +211,8 @@ impl TryFrom<u8> for PswTank {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0 => Ok(Self::All),
-            1 => Ok(Self::First),
-            2 => Ok(Self::Second),
+            1 => Ok(Self::Tank1),
+            2 => Ok(Self::Tank2),
             _ => Err(Grib2Error::ConvertError(
                 format!("`{value}`を`PswTank`型に変換できません。").into(),
             )),
