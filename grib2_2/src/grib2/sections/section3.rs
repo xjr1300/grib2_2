@@ -56,11 +56,11 @@ impl Section3 {
         }
     }
 
-    /// 最初の格子点の緯度（10e-6度単位）を返す。
+    /// 最初の格子点の緯度（1e-6度単位）を返す。
     ///
     /// # 戻り値
     ///
-    /// * 最初の格子点の緯度（10e-6度単位）
+    /// * 最初の格子点の緯度（1e-6度単位）
     pub fn lat_of_first_grid_point(&self) -> Grib2Result<u32> {
         match self {
             Self::Template3_0(s) => Ok(s.lat_of_first_grid_point),
@@ -70,11 +70,11 @@ impl Section3 {
         }
     }
 
-    /// 最初の格子点の経度（10e-6度単位）を返す。
+    /// 最初の格子点の経度（1e-6度単位）を返す。
     ///
     /// # 戻り値
     ///
-    /// * 最初の格子点の経度（10e-6度単位）
+    /// * 最初の格子点の経度（1e-6度単位）
     pub fn lon_of_first_grid_point(&self) -> Grib2Result<u32> {
         match self {
             Self::Template3_0(s) => Ok(s.lon_of_first_grid_point),
@@ -84,11 +84,11 @@ impl Section3 {
         }
     }
 
-    /// 最後の格子点の経度（10e-6度単位）を返す。
+    /// 最後の格子点の経度（1e-6度単位）を返す。
     ///
     /// # 戻り値
     ///
-    /// * 最後の格子点の経度（10e-6度単位）
+    /// * 最後の格子点の経度（1e-6度単位）
     pub fn lon_of_last_grid_point(&self) -> Grib2Result<u32> {
         match self {
             Self::Template3_0(s) => Ok(s.lon_of_last_grid_point),
@@ -98,11 +98,11 @@ impl Section3 {
         }
     }
 
-    /// i方向（経度方向）の増分値（10e-6度単位）を返す。
+    /// i方向（経度方向）の増分値（1e-6度単位）を返す。
     ///
     /// # 戻り値
     ///
-    /// * i方向（経度方向）の増分値（10e-6度単位）
+    /// * i方向（経度方向）の増分値（1e-6度単位）
     pub fn i_direction_increment(&self) -> Grib2Result<u32> {
         match self {
             Self::Template3_0(s) => Ok(s.i_direction_increment),
@@ -112,11 +112,11 @@ impl Section3 {
         }
     }
 
-    /// j方向（緯度方向）の増分（10e-6度単位）を返す。
+    /// j方向（緯度方向）の増分（1e-6度単位）を返す。
     ///
     /// # 戻り値
     ///
-    /// * j方向（緯度方向）の増分（10e-6度単位）
+    /// * j方向（緯度方向）の増分（1e-6度単位）
     pub fn j_direction_increment(&self) -> Grib2Result<u32> {
         match self {
             Self::Template3_0(s) => Ok(s.j_direction_increment),
@@ -172,19 +172,19 @@ pub struct Section3_0 {
     pub basic_angle_of_initial_product_domain: u32,
     /// 端点の経度及び緯度並びに方向増分の定義に使われる基本角の細分
     pub subdivisions_of_basic_angle: u32,
-    /// 最初の格子点の緯度（10e-6度単位）
+    /// 最初の格子点の緯度（1e-6度単位）
     pub lat_of_first_grid_point: u32,
-    /// 最初の格子点の経度（10e-6度単位）
+    /// 最初の格子点の経度（1e-6度単位）
     pub lon_of_first_grid_point: u32,
     /// 分解能及び成分フラグ
     pub resolution_and_component_flags: u8,
-    /// 最後の格子点の緯度（10e-6度単位）
+    /// 最後の格子点の緯度（1e-6度単位）
     pub lat_of_last_grid_point: u32,
-    /// 最後の格子点の経度（10e-6度単位）
+    /// 最後の格子点の経度（1e-6度単位）
     pub lon_of_last_grid_point: u32,
-    /// i方向（経度方向）の増分（10e-6度単位）
+    /// i方向（経度方向）の増分（1e-6度単位）
     pub i_direction_increment: u32,
-    /// j方向（緯度方向）の増分（10e-6度単位）
+    /// j方向（緯度方向）の増分（1e-6度単位）
     pub j_direction_increment: u32,
     /// 走査モード
     pub scanning_mode: u8,
@@ -244,19 +244,19 @@ fn read_section3_0<R: Read>(
     // 端点の経度及び緯度並びに方向増分の定義に使われる基本角の細分: 4バイト
     let subdivisions_of_basic_angle =
         read_u32(reader, "第3節:端点の経度及び緯度並びに方向増分の定義")?;
-    // 最初の格子点の緯度（10e-6度単位）: 4バイト
+    // 最初の格子点の緯度（1e-6度単位）: 4バイト
     let lat_of_first_grid_point = read_u32(reader, "第3節:最初の格子点の緯度")?;
-    // 最初の格子点の経度（10e-6度単位）: 4バイト
+    // 最初の格子点の経度（1e-6度単位）: 4バイト
     let lon_of_first_grid_point = read_u32(reader, "第3節:最初の格子点の経度")?;
     // 分解能及び成分フラグ: 1バイト
     let resolution_and_component_flags = read_u8(reader, "第3節:分解能及び成分フラグ")?;
-    // 最後の格子点の緯度（10e-6度単位）: 4バイト
+    // 最後の格子点の緯度（1e-6度単位）: 4バイト
     let lat_of_last_grid_point = read_u32(reader, "第3節:最後の格子点の緯度")?;
-    // 最後の格子点の経度（10e-6度単位）: 4バイト
+    // 最後の格子点の経度（1e-6度単位）: 4バイト
     let lon_of_last_grid_point = read_u32(reader, "第3節:最後の格子点の経度")?;
-    // i方向（経度方向）の増分（10e-6度単位）: 4バイト
+    // i方向（経度方向）の増分（1e-6度単位）: 4バイト
     let i_direction_increment = read_u32(reader, "第3節:i方向の増分")?;
-    // j方向（緯度方向）の増分（10e-6度単位）: 4バイト
+    // j方向（緯度方向）の増分（1e-6度単位）: 4バイト
     let j_direction_increment = read_u32(reader, "第3節:j方向の増分")?;
     // 走査モード: 1バイト
     let scanning_mode = read_u8(reader, "第3節:走査モード")?;

@@ -10,9 +10,9 @@ pub struct Grib2Record<T>
 where
     T: Clone + Copy,
 {
-    /// 10e-6度単位の緯度
+    /// 1e-6度単位の緯度
     pub lat: u32,
-    /// 10e-6度単位の経度
+    /// 1e-6度単位の経度
     pub lon: u32,
     /// 値
     pub value: Option<T>,
@@ -28,13 +28,13 @@ where
     number_of_points: u32,
     /// ランレングス圧縮符号を記録しているバイト数
     total_bytes: usize,
-    /// 経度の最小値（10e-6度単位）
+    /// 経度の最小値（1e-6度単位）
     lon_min: u32,
-    /// 経度の最大値（10e-6度単位）
+    /// 経度の最大値（1e-6度単位）
     lon_max: u32,
-    /// 緯度の増分（10e-6度単位）
+    /// 緯度の増分（1e-6度単位）
     lat_inc: u32,
-    /// 経度の増分（10e-6度単位）
+    /// 経度の増分（1e-6度単位）
     lon_inc: u32,
     /// 今回のレベルの最大値
     maxv: u16,
@@ -44,9 +44,9 @@ where
     level_values: &'a [V],
     /// ランレングス圧縮符号を読み込んだバイト数
     read_bytes: usize,
-    /// 現在の緯度（10e-6度単位）
+    /// 現在の緯度（1e-6度単位）
     current_lat: u32,
-    /// 現在の経度（10e-6度単位）
+    /// 現在の経度（1e-6度単位）
     current_lon: u32,
     /// 現在のレベル値
     current_level: u16,
@@ -226,37 +226,37 @@ where
         self
     }
 
-    /// 緯度の最大値（10e-6度単位）を設定する。
+    /// 緯度の最大値（1e-6度単位）を設定する。
     pub fn lat_max(mut self, lat_max: u32) -> Self {
         self.lat_max = Some(lat_max);
         self
     }
 
-    /// 経度の最小値（10e-6度単位）を設定する。
+    /// 経度の最小値（1e-6度単位）を設定する。
     pub fn lon_min(mut self, lon_min: u32) -> Self {
         self.lon_min = Some(lon_min);
         self
     }
 
-    /// 経度の最大値（10e-6度単位）を設定する。
+    /// 経度の最大値（1e-6度単位）を設定する。
     pub fn lon_max(mut self, lon_max: u32) -> Self {
         self.lon_max = Some(lon_max);
         self
     }
 
-    /// 緯度の増分（10e-6度単位）を設定する。
+    /// 緯度の増分（1e-6度単位）を設定する。
     pub fn lat_inc(mut self, lat_inc: u32) -> Self {
         self.lat_inc = Some(lat_inc);
         self
     }
 
-    /// 経度の増分（10e-6度単位）を設定する。
+    /// 経度の増分（1e-6度単位）を設定する。
     pub fn lon_inc(mut self, lon_inc: u32) -> Self {
         self.lon_inc = Some(lon_inc);
         self
     }
 
-    /// 1格子点値当りのビット数を設定する。
+    /// 1データのビット数を設定する。
     pub fn nbit(mut self, nbit: u16) -> Self {
         self.nbit = Some(nbit);
         self
