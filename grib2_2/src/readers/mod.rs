@@ -3,9 +3,9 @@ mod fpsw;
 mod lwjm;
 mod prr;
 mod psw;
-mod records;
+pub(crate) mod records;
 pub mod sections;
-mod utils;
+pub(crate) mod utils;
 
 use std::cmp::Ordering;
 

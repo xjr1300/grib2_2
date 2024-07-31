@@ -55,3 +55,21 @@ pub fn format_optional_value<T: Clone + Copy + ToString>(value: Option<T>) -> St
         None => "".into(),
     }
 }
+
+pub mod grib2 {
+    use grib2_2::grib2::reader::Grib2Record;
+
+    /// レコードを出力するか確認する。
+    ///
+    /// # 引数
+    ///
+    /// * `record` - レコード
+    ///
+    /// # 戻り値
+    ///
+    /// * 出力する場合は`true`
+    /// * 出力しない場合は`false`
+    pub fn should_write_record(record: &Grib2Record) -> bool {
+        record.value.is_some()
+    }
+}
