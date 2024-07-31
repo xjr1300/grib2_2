@@ -1,24 +1,116 @@
-use std::io::{BufReader, Read};
+use std::fs::{File, OpenOptions};
+use std::io::{BufReader, Read, Seek};
+use std::path::Path;
 
-use num_format::{Locale, ToFormattedString};
+use num_format::{Locale, ToFormattedString as _};
 
+use crate::readers::records::expand_run_length;
 use crate::{Grib2Error, Grib2Result};
 
-/// GRIB2が第7節に記録しているレコード
+use super::sections::{
+    Section0, Section1, Section2, Section3, Section4, Section5, Section6, Section7, Section8,
+};
+
+/// GRIB2ファイルリーダー
+pub struct Grib2Reader {
+    /// ファイルリーダー
+    reader: BufReader<File>,
+    /// 第0節:指示節
+    pub section0: Section0,
+    /// 第1節:識別節
+    pub section1: Section1,
+    /// 第2節:地域使用節
+    pub section2: Section2,
+    /// 第3節:格子系定義節
+    pub section3: Section3,
+    /// 第4節:プロダクト定義節
+    pub section4: Section4,
+    /// 第5節:資料表現節
+    pub section5: Section5,
+    /// 第6節:ビットマップ節
+    pub section6: Section6,
+    /// 第7節:資料節
+    pub section7: Section7,
+    /// 第8節: 終端節
+    pub section8: Section8,
+}
+
+impl Grib2Reader {
+    /// GRIB2ファイルを開く。
+    ///
+    /// # 引数
+    ///
+    /// * `path` - 開くGRIB2ファイルのパス。
+    ///
+    /// # GRIB2リーダー
+    pub fn new<P: AsRef<Path>>(path: P) -> Grib2Result<Self> {
+        let path = path.as_ref();
+        if !path.is_file() {
+            return Err(Grib2Error::FileDoesNotExist);
+        }
+        let file = OpenOptions::new()
+            .read(true)
+            .open(path)
+            .map_err(|e| Grib2Error::Unexpected(e.into()))?;
+        let mut reader = BufReader::new(file);
+        let section0 = Section0::from_reader(&mut reader)?;
+        let section1 = Section1::from_reader(&mut reader)?;
+        let section2 = Section2::from_reader(&mut reader)?;
+        let section3 = Section3::from_reader(&mut reader)?;
+        let section4 = Section4::from_reader(&mut reader)?;
+        let section5 = Section5::from_reader(&mut reader)?;
+        let section6 = Section6::from_reader(&mut reader)?;
+        let section7 = Section7::from_reader(&mut reader)?;
+        let section8 = Section8::from_reader(&mut reader)?;
+
+        Ok(Self {
+            reader,
+            section0,
+            section1,
+            section2,
+            section3,
+            section4,
+            section5,
+            section6,
+            section7,
+            section8,
+        })
+    }
+
+    /// GRIB2の第7節に記録されているレコードを反復処理するイテレーターを返す。
+    ///
+    /// # 戻り値
+    ///
+    /// * GRIB2のレコードを反復処理するイテレーター
+    pub fn record_iter(&mut self) -> Grib2Result<Grib2RecordIter<'_, File>> {
+        Grib2RecordIterBuilder::new()
+            .reader(&mut self.reader)
+            .run_length_position(self.section7.run_length_position()?)
+            .run_length_bytes(self.section7.run_length_bytes()?)
+            .number_of_points(self.section3.number_of_points()?)
+            .lat_max(self.section3.lat_of_first_grid_point()?)
+            .lon_min(self.section3.lon_of_first_grid_point()?)
+            .lon_max(self.section3.lon_of_last_grid_point()?)
+            .lat_inc(self.section3.j_direction_increment()?)
+            .lon_inc(self.section3.i_direction_increment()?)
+            .nbit(self.section5.bit_per_value()? as u16)
+            .maxv(self.section5.max_level_value()?)
+            .level_values(self.section5.level_values()?)
+            .build()
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
-pub struct Grib2Record<T>
-where
-    T: Clone + Copy,
-{
+pub struct Grib2Record {
     /// 10e-6度単位の緯度
     pub lat: u32,
     /// 10e-6度単位の経度
     pub lon: u32,
-    /// 値
-    pub value: Option<T>,
+    /// 値を表現するバイト列
+    pub value: Option<[u8; 2]>,
 }
 
-pub struct Grib2RecordIter<'a, R, V>
+pub struct Grib2RecordIter<'a, R>
 where
     R: Read,
 {
@@ -41,7 +133,7 @@ where
     /// LNGU進数
     lngu: u16,
     /// レベル別物理値
-    level_values: &'a [V],
+    level_values: &'a [[u8; 2]],
     /// ランレングス圧縮符号を読み込んだバイト数
     read_bytes: usize,
     /// 現在の緯度（10e-6度単位）
@@ -51,7 +143,7 @@ where
     /// 現在のレベル値
     current_level: u16,
     /// 現在の物理値
-    current_value: Option<V>,
+    current_value: Option<[u8; 2]>,
     /// 現在値を返却する回数
     returning_times: u32,
     /// 読み込んだ座標数
@@ -60,7 +152,7 @@ where
     last_run_length: Option<u16>,
 }
 
-impl<'a, R, V> Grib2RecordIter<'a, R, V>
+impl<'a, R> Grib2RecordIter<'a, R>
 where
     R: Read,
 {
@@ -103,12 +195,11 @@ where
     }
 }
 
-impl<'a, R, V> Iterator for Grib2RecordIter<'a, R, V>
+impl<'a, R> Iterator for Grib2RecordIter<'a, R>
 where
     R: Read,
-    V: Copy,
 {
-    type Item = Grib2Result<Grib2Record<V>>;
+    type Item = Grib2Result<Grib2Record>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // 現在値返却回数が0かつ、読み込んだバイト数がランレングス圧縮符号列を記録しているバイト数に達している場合は終了
@@ -168,14 +259,13 @@ where
     }
 }
 
-#[derive(Default)]
-pub struct Grib2RecordIterBuilder<'a, R, V>
+struct Grib2RecordIterBuilder<'a, R>
 where
-    R: Read,
-    V: Clone + Copy,
+    R: Read + Seek,
 {
     reader: Option<&'a mut BufReader<R>>,
-    total_bytes: Option<usize>,
+    run_length_position: Option<usize>,
+    run_length_bytes: Option<usize>,
     number_of_points: Option<u32>,
     lat_max: Option<u32>,
     lon_min: Option<u32>,
@@ -184,18 +274,18 @@ where
     lon_inc: Option<u32>,
     nbit: Option<u16>,
     maxv: Option<u16>,
-    level_values: Option<&'a [V]>,
+    level_values: Option<&'a [[u8; 2]]>,
 }
 
-impl<'a, R, V> Grib2RecordIterBuilder<'a, R, V>
+impl<'a, R> Grib2RecordIterBuilder<'a, R>
 where
-    R: Read,
-    V: Clone + Copy,
+    R: Read + Seek,
 {
     pub fn new() -> Self {
         Self {
             reader: None,
-            total_bytes: None,
+            run_length_position: None,
+            run_length_bytes: None,
             number_of_points: None,
             lat_max: None,
             lon_min: None,
@@ -214,9 +304,14 @@ where
         self
     }
 
+    /// ランレングス圧縮符号列の開始位置を設定する。
+    pub fn run_length_position(mut self, run_length_position: usize) -> Self {
+        self.run_length_position = Some(run_length_position);
+        self
+    }
     /// ランレングス圧縮符号全体のバイト数を設定する。
-    pub fn total_bytes(mut self, total_bytes: usize) -> Self {
-        self.total_bytes = Some(total_bytes);
+    pub fn run_length_bytes(mut self, run_length_bytes: usize) -> Self {
+        self.run_length_bytes = Some(run_length_bytes);
         self
     }
 
@@ -269,16 +364,21 @@ where
     }
 
     /// レベル別物理値を設定する。
-    pub fn level_values(mut self, level_values: &'a [V]) -> Self {
+    pub fn level_values(mut self, level_values: &'a [[u8; 2]]) -> Self {
         self.level_values = Some(level_values);
         self
     }
 
-    pub fn build(self) -> Grib2Result<Grib2RecordIter<'a, R, V>> {
+    pub fn build(self) -> Grib2Result<Grib2RecordIter<'a, R>> {
         let reader = self
             .reader
             .ok_or_else(|| Grib2Error::RuntimeError("リーダーが設定されていません。".into()))?;
-        let total_bytes = self.total_bytes.ok_or_else(|| {
+        let run_length_position = self.run_length_position.ok_or_else(|| {
+            Grib2Error::RuntimeError(
+                "ランレングス圧縮符号列の開始位置が設定されていません。".into(),
+            )
+        })?;
+        let run_length_bytes = self.run_length_bytes.ok_or_else(|| {
             Grib2Error::RuntimeError(
                 "ランレングス圧縮符号全体のバイト数が設定されていません。".into(),
             )
@@ -315,9 +415,22 @@ where
             Grib2Error::RuntimeError("レベル別物理値が設定されていません。".into())
         })?;
 
+        // ランレングス圧縮符号列の開始位置にファイルポインターを移動
+        reader
+            .seek(std::io::SeekFrom::Start(run_length_position as u64))
+            .map_err(|e| {
+                Grib2Error::ReadError(
+                    format!(
+                        "ランレングス圧縮符号列の開始位置にファイルポインターを移動できません。{}",
+                        e
+                    )
+                    .into(),
+                )
+            })?;
+
         Ok(Grib2RecordIter {
             reader,
-            total_bytes,
+            total_bytes: run_length_bytes,
             number_of_points,
             lon_min,
             lon_max,
@@ -335,149 +448,5 @@ where
             number_of_reads: 0,
             last_run_length: None,
         })
-    }
-}
-
-/// 1セットのランレングス圧縮符号を展開する。
-///
-/// 引数valuesの最初の要素はレベル値で、それ以降はランレングス値である。
-/// これを1セットのランレングス圧縮符号とする。
-/// ランレングス値を含まない場合のvaluesの要素数は1で、ランレングス値を含む場合のvaluesの要素数
-/// は2以上である。
-///
-/// この関数が展開する、GRIB2資料テンプレート7.200（気象庁定義資料テンプレート）で利用されている
-/// ランレングス圧縮符号を以下に示す。
-///
-/// * 格子点値が取りうるレベル値
-///   * レベル値は2次元矩形領域の格子点上に存在し、0以上maxv以下の整数を取る。
-///   * ここでmaxvは、GRIB資料表現テンプレート5.200（気象庁定義資料表現テンプレート）
-///     第5節13-14オクテットで示される「今回の圧縮に用いたレベルの最大値」である。
-///     * 第5節15-16オクテットの「レベルの最大値」ではないことに注意すること。
-/// * 2次元データの1次元化
-///   * 主走査方向を2次元矩形領域の左から右（通常西から東）、副走査方向を上から下（通常北から南）と
-///     して、2次元データを1次元化する。
-///     * データは最も左上の格子点の値から始まり、東方向に向かって格子点のレベル値を記録する。
-///     * その緯度の最東端に達したら、下の最西端の格子点に移動して、上記同様に格子点のレベル値を記録
-///       する。
-///   * 最初のデータは最も左上の格子点の値であり、最後のデータは最も右下の格子点の値である。
-/// * ランレングス符号化後の1格子点値当りのビット数（nbit）
-///   * nbitは、ランレングス符号化されたデータ列の中で、レベル値及びランレングス値を表現するビット数
-///     である。
-///   * nbitは、GRIB2資料表現テンプレート5.200第5節12オクテットで示される「1データのビット数」
-///     である。
-/// * 1セット内のレベル値とランレングス値の配置
-///   * ランレングス符号化されたデータ列の中で0以上maxv以下の値は各格子点のレベル値で、maxvよりも
-///     大きな値はランレングス値である。
-///   * 1セットは、最初にレベル値を配置し、もしその値が連続するのであれば後ろにランレングス値を付加
-///     して作成される。
-///   * maxvよりも大きな値が続く場合、それらすべては当該セットのランレングス値である。
-///   * データに、maxv以下の値が現れた時点で当該セットが終了し、このmaxv以下の値は次のセットの
-///     レベル値となる。
-///   * なお、同じレベル値が連続しない場合はランレングスは付加されず、次のセットに移る。
-/// * ランレングス符号化方法
-///   * (2 ^ nbit - maxv)よりも大きなランレングスが必要となった場合、1データでは表現すること
-///     ができない。
-///   * これに対応するために、2つ以上のランレングス値を連続させてランレングスを表現するが、連続した
-///      データの単純な総和をランレングスとしても圧縮効率があがらない。
-///   * よって、lngu(=2 ^ nbit - 1 - maxv)進数を用いてランレングスを表現する。
-///   * レベル値のすぐ後に続く最初のランレングス値(data1)をlngu進数の1桁目
-///     RL1={lngu ^ (1 - 1) * (data1 - (maxv + 1))}とする。
-///   * それ以降n番目のランレングス値(dataN)は、lngu進数のn桁目
-///     RLn={lngu ^ (n - 1) * (dataN - (maxv + 1))}とする。
-///   * 最終的なランレングスは、それらの「総和 + 1(RL = ΣRLi + 1)」となる。
-/// * ランレングス符号化例
-///   * nbit = 4、maxv = 10とした場合、lngu = 2 ^ 4 - 1 - 10 = 16 - 1 - 10 = 5となる。
-///   * ランレングス符号化列 = {3, 9, 12, 6, 4, 15, 2, 1, 0, 13, 12, 2, 3}は、以下の通り
-///     展開される。
-///   * {3, 9, 9, 6, 4, 4, 4, 4, 4, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3}
-///   * 最初の3
-///     * 最初の3はレベル値である。
-///     * 3の次の9はmaxv以下であるため、9はレベル値である。
-///     * よって、最初の3は1つだけで、繰り返されない。
-///   * レベル値とランレングス値のセット{9, 12}
-///     * 9がレベル値で12がランレングス値である。
-///     * 12の次は6であり、10以下であるため6はレベル値である。
-///     * RL1 = 5 ^ (1 - 1) * (12 - (10 + 1)) = 1 * 1 = 1
-///     * RL = 1 + 1 = 2
-///     * よって、9が２つ連続する。
-///   * レベル値とランレングス値のセット{0, 13, 12}
-///     * 0がレベル値で13と12がランレングス値である。
-///     * RL1 = 5 ^ (1 - 1) * (13 - (10 + 1)) = 1 * 2 = 2
-///     * RL2 = 5 ^ (2 - 1) * (12 - (10 + 1)) = 5 * 1 = 5
-///     * RL = 2 + 5 + 1 = 8
-///     * よって、0が8連続する。
-///
-/// # 引数
-///
-/// * `values` - 1セットのランレングス圧縮データ。
-/// * `maxv` - 今回の圧縮に用いたレベルの最大値（第5節 13-14オクテット）。
-/// * `lngu` - レベル値またはランレングス値のビット数をnbitとしたときの、2 ^ nbit -1 - maxvの値。
-///
-/// # 戻り値
-///
-/// レベル値とそのレベル値を繰り返す数を格納したタプル。
-pub(crate) fn expand_run_length(values: &[u16], maxv: u16, lngu: u16) -> (u16, u32) {
-    assert!(values[0] <= maxv, "values[0]={}, maxv={}", values[0], maxv);
-
-    // ランレングス圧縮されていない場合
-    if values.len() == 1 {
-        return (values[0], 1);
-    }
-
-    // ランレングス圧縮を展開
-    let values: Vec<u32> = values.iter().map(|v| *v as u32).collect();
-    let lngu = lngu as u32;
-    let maxv = maxv as u32;
-    let times: u32 = values[1..]
-        .iter()
-        .enumerate()
-        .map(|(i, &v)| lngu.pow(i as u32) * (v - (maxv + 1)))
-        .sum();
-
-    (values[0] as u16, times + 1)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::expand_run_length;
-
-    #[test]
-    fn expand_run_length0_ok() {
-        let nbit = 4;
-        let maxv = 10;
-        let lngu = 2u16.pow(nbit) - 1 - maxv;
-        let values = vec![3u16];
-        let expected = (3u16, 1u32);
-        assert_eq!(expected, expand_run_length(&values, maxv, lngu));
-    }
-
-    #[test]
-    fn expand_run_length1_ok() {
-        let nbit = 4;
-        let maxv = 10;
-        let lngu = 2u16.pow(nbit) - 1 - maxv;
-        let values = vec![9u16, 12];
-        let expected = (9u16, 2u32);
-        assert_eq!(expected, expand_run_length(&values, maxv, lngu));
-    }
-
-    #[test]
-    fn expand_run_length2_ok() {
-        let nbit = 4;
-        let maxv = 10;
-        let lngu = 2u16.pow(nbit) - 1 - maxv;
-        let values = vec![4u16, 15];
-        let expected = (4u16, 5u32);
-        assert_eq!(expected, expand_run_length(&values, maxv, lngu));
-    }
-
-    #[test]
-    fn expand_run_length3() {
-        let nbit = 4;
-        let maxv = 10;
-        let lngu = 2u16.pow(nbit) - 1 - maxv;
-        let values = vec![0u16, 13, 12];
-        let expected = (0u16, 8u32);
-        assert_eq!(expected, expand_run_length(&values, maxv, lngu));
     }
 }

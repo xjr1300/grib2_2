@@ -18,7 +18,7 @@ where
     number_of_data_points: u32,
     /// 格子点数を定義するリストのオクテット数
     number_of_octets_for_number_of_points: u8,
-    /// 格子点数を定義するリストの節明
+    /// 格子点数を定義するリストの説明
     description_of_number_of_points: u8,
     /// 格子系定義テンプレート番号
     grid_definition_template_number: u16,
@@ -51,9 +51,9 @@ where
         // 格子点数を定義するリストのオクテット数: 1バイト
         let number_of_octets_for_number_of_points =
             read_u8(reader, "第3節:格子点数を定義するリストのオクテット数")?;
-        // 格子点数を定義するリストの節明
+        // 格子点数を定義するリストの説明
         let description_of_number_of_points =
-            read_u8(reader, "第3節:格子点数を定義するリストの節明")?;
+            read_u8(reader, "第3節:格子点数を定義するリストの説明")?;
         // 格子系定義テンプレート番号: 2バイト
         let grid_definition_template_number = read_u16(reader, "第3節:格子系定義テンプレート番号")?;
         // テンプレート3
@@ -90,7 +90,7 @@ where
         self.number_of_octets_for_number_of_points
     }
 
-    /// 格子点数を定義するリストの節明を返す。
+    /// 格子点数を定義するリストの説明を返す。
     pub fn description_of_number_of_points(&self) -> u8 {
         self.description_of_number_of_points
     }

@@ -7,12 +7,253 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "Debug unit tests in library 'examples'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=examples"
+                ],
+                "filter": {
+                    "name": "examples",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'grib2_reader'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=grib2_reader",
+                    "--package=examples"
+                ],
+                "filter": {
+                    "name": "grib2_reader",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'grib2_reader'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=grib2_reader",
+                    "--package=examples"
+                ],
+                "filter": {
+                    "name": "grib2_reader",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'prr_reader'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=prr_reader",
+                    "--package=examples"
+                ],
+                "filter": {
+                    "name": "prr_reader",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'prr_reader'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=prr_reader",
+                    "--package=examples"
+                ],
+                "filter": {
+                    "name": "prr_reader",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'psw_reader'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=psw_reader",
+                    "--package=examples"
+                ],
+                "filter": {
+                    "name": "psw_reader",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'psw_reader'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=psw_reader",
+                    "--package=examples"
+                ],
+                "filter": {
+                    "name": "psw_reader",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'lwjm_reader_live_forecasts'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=lwjm_reader_live_forecasts",
+                    "--package=examples"
+                ],
+                "filter": {
+                    "name": "lwjm_reader_live_forecasts",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'lwjm_reader_live_forecasts'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=lwjm_reader_live_forecasts",
+                    "--package=examples"
+                ],
+                "filter": {
+                    "name": "lwjm_reader_live_forecasts",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'lwjm_reader_live'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=lwjm_reader_live",
+                    "--package=examples"
+                ],
+                "filter": {
+                    "name": "lwjm_reader_live",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'lwjm_reader_live'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=lwjm_reader_live",
+                    "--package=examples"
+                ],
+                "filter": {
+                    "name": "lwjm_reader_live",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'fpsw_reader'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=fpsw_reader",
+                    "--package=examples"
+                ],
+                "filter": {
+                    "name": "fpsw_reader",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'fpsw_reader'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=fpsw_reader",
+                    "--package=examples"
+                ],
+                "filter": {
+                    "name": "fpsw_reader",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "Debug example 'fprr_reader'",
             "cargo": {
                 "args": [
                     "build",
                     "--example=fprr_reader",
-                    "--package=grib2_2"
+                    "--package=examples"
                 ],
                 "filter": {
                     "name": "fprr_reader",
@@ -22,5 +263,62 @@
             "args": [],
             "cwd": "${workspaceFolder}"
         },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'fprr_reader'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=fprr_reader",
+                    "--package=examples"
+                ],
+                "filter": {
+                    "name": "fprr_reader",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'grib2_2'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=grib2_2"
+                ],
+                "filter": {
+                    "name": "grib2_2",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'helpers'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=helpers"
+                ],
+                "filter": {
+                    "name": "helpers",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
     ]
 }
