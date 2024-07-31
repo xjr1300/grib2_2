@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+pub mod grib2;
 pub mod readers;
 
 /// GRIB2結果
@@ -22,6 +23,10 @@ pub enum Grib2Error {
     /// 変換エラー
     #[error("{0}")]
     ConvertError(Cow<'static, str>),
+
+    /// 未実装エラー
+    #[error("{0}")]
+    NotImplemented(Cow<'static, str>),
 
     /// 予期しないエラー
     #[error("予期していないエラーが発生しました。{0}")]
